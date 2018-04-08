@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/golang/glog"
+
 	"github.com/kubernetes/client-go/kubernetes/typed/authentication/v1"
 	authenticationapi "k8s.io/api/authentication/v1"
 )
@@ -22,7 +24,7 @@ type osbError struct {
 // Middleware - function that conforms to gorilla-mux middleware.
 func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		glog.Debugf("Checking token for authentication")
+		glog.Infof("Checking token for authentication")
 		auth := strings.TrimSpace(r.Header.Get("Authorization"))
 		if auth == "" {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
@@ -36,8 +38,7 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "invalid authentication",
 			})
-			glog.Infof("invalid authentication")
-			glog.Debugf("invalid authentication - %v\n", auth)
+			glog.Infof("invalid authentication - %v\n", auth)
 			return
 		}
 		token := parts[1]
@@ -45,8 +46,7 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "unable to find authentication token",
 			})
-			glog.Infof("unable to find authentication token")
-			glog.Debugf("unable to find authentication token- %v\n", token)
+			glog.Infof("unable to find authentication token- %v\n", token)
 			return
 		}
 		t, err := tr.TokenReview.Create(&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: token}})
@@ -54,8 +54,7 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "unable to authenticate token",
 			})
-			glog.Infof("unable to authenticate token")
-			glog.Debugf("unable to authenticate token- %v\n", err)
+			glog.Infof("unable to authenticate token- %v\n", err)
 			return
 		}
 		if !t.Status.Authenticated {
