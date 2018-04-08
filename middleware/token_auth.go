@@ -22,11 +22,13 @@ type osbError struct {
 // Middleware - function that conforms to gorilla-mux middleware.
 func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		glog.Debugf("Checking token for authentication")
 		auth := strings.TrimSpace(r.Header.Get("Authorization"))
 		if auth == "" {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "unable to find authentication token",
 			})
+			glog.Infof("unable to find the authentication token")
 			return
 		}
 		parts := strings.Split(auth, " ")
@@ -34,6 +36,8 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "invalid authentication",
 			})
+			glog.Infof("invalid authentication")
+			glog.Debugf("invalid authentication - %v\n", auth)
 			return
 		}
 		token := parts[1]
@@ -41,6 +45,8 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "unable to find authentication token",
 			})
+			glog.Infof("unable to find authentication token")
+			glog.Debugf("unable to find authentication token- %v\n", token)
 			return
 		}
 		t, err := tr.TokenReview.Create(&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: token}})
@@ -48,12 +54,15 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "unable to authenticate token",
 			})
+			glog.Infof("unable to authenticate token")
+			glog.Debugf("unable to authenticate token- %v\n", err)
 			return
 		}
 		if !t.Status.Authenticated {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "user was not authenticated",
 			})
+			glog.Infof("user was not authenticated")
 			return
 		}
 		//Log debug user that has been authenticated
