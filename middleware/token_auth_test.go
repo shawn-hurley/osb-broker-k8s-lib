@@ -26,6 +26,7 @@ func (ftr fakeTokenReview) Create(tr *authenticationapi.TokenReview) (*authentic
 func TestTokenReviewMiddleware(t *testing.T) {
 	cases := []struct {
 		name         string
+		url          string
 		tokenReview  v1.TokenReviewInterface
 		header       string
 		responseCode int
@@ -60,6 +61,12 @@ func TestTokenReviewMiddleware(t *testing.T) {
 			errorMessage: "user was not authenticated",
 		},
 		{
+			name:         "unauthenticated user + healthz",
+			url:          "/healthz",
+			tokenReview:  fake.NewSimpleClientset().Authentication().TokenReviews(),
+			responseCode: http.StatusOK,
+		},
+		{
 			name:         "token review failure",
 			tokenReview:  fakeTokenReview{&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: "newsimpletoken"}, Status: authenticationapi.TokenReviewStatus{Authenticated: true}}},
 			header:       "bearer anothertoken",
@@ -80,8 +87,17 @@ func TestTokenReviewMiddleware(t *testing.T) {
 			trm := TokenReviewMiddleware{
 				TokenReview: tc.tokenReview,
 			}
-			req := httptest.NewRequest("GET", "http://example.com/foo", nil)
-			req.Header.Add("Authorization", tc.header)
+
+			url := "http://example.com/foo"
+			if tc.url != "" {
+				url = tc.url
+			}
+			req := httptest.NewRequest("GET", url, nil)
+
+			if tc.header != "" {
+				req.Header.Add("Authorization", tc.header)
+			}
+
 			w := httptest.NewRecorder()
 			trm.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
