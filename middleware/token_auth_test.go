@@ -23,11 +23,21 @@ func (ftr fakeTokenReview) Create(tr *authenticationapi.TokenReview) (*authentic
 	return ftr.TokenReview, nil
 }
 
+type fakeAuthorizer struct {
+	Decision Decision
+	Err      error
+}
+
+func (f fakeAuthorizer) Authorize(u authenticationapi.UserInfo, r *http.Request) (Decision, error) {
+	return f.Decision, f.Err
+}
+
 func TestTokenReviewMiddleware(t *testing.T) {
 	cases := []struct {
 		name         string
 		url          string
 		tokenReview  v1.TokenReviewInterface
+		authorizer   UserInfoAuthorizer
 		header       string
 		responseCode int
 		errorMessage string
@@ -80,12 +90,45 @@ func TestTokenReviewMiddleware(t *testing.T) {
 			responseCode: http.StatusOK,
 			errorMessage: "",
 		},
+		{
+			name:         "authenticated & authorized user",
+			tokenReview:  fakeTokenReview{&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: "newsimpletoken"}, Status: authenticationapi.TokenReviewStatus{Authenticated: true}}},
+			authorizer:   fakeAuthorizer{Decision: DecisionAllowed, Err: nil},
+			header:       "bearer newsimpletoken",
+			responseCode: http.StatusOK,
+			errorMessage: "",
+		},
+		{
+			name:         "authenticated & denied user",
+			tokenReview:  fakeTokenReview{&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: "newsimpletoken"}, Status: authenticationapi.TokenReviewStatus{Authenticated: true}}},
+			authorizer:   fakeAuthorizer{Decision: DecisionDeny, Err: nil},
+			header:       "bearer newsimpletoken",
+			responseCode: http.StatusUnauthorized,
+			errorMessage: "unable to authorize user",
+		},
+		{
+			name:         "authenticated & no opinion on user",
+			tokenReview:  fakeTokenReview{&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: "newsimpletoken"}, Status: authenticationapi.TokenReviewStatus{Authenticated: true}}},
+			authorizer:   fakeAuthorizer{Decision: DecisionNoOpinion, Err: nil},
+			header:       "bearer newsimpletoken",
+			responseCode: http.StatusUnauthorized,
+			errorMessage: "unable to authorize user",
+		},
+		{
+			name:         "authenticated & error authorizing user",
+			tokenReview:  fakeTokenReview{&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: "newsimpletoken"}, Status: authenticationapi.TokenReviewStatus{Authenticated: true}}},
+			authorizer:   fakeAuthorizer{Decision: DecisionDeny, Err: fmt.Errorf("unable to complete SAR")},
+			header:       "bearer newsimpletoken",
+			responseCode: http.StatusUnauthorized,
+			errorMessage: "unable to authorize user",
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			trm := TokenReviewMiddleware{
 				TokenReview: tc.tokenReview,
+				Authorizer:  tc.authorizer,
 			}
 
 			url := "http://example.com/foo"
