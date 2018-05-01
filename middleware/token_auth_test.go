@@ -41,6 +41,7 @@ func TestTokenReviewMiddleware(t *testing.T) {
 		header       string
 		responseCode int
 		errorMessage string
+		ignoredPaths []string
 	}{
 		{
 			name:         "no auth string",
@@ -71,10 +72,11 @@ func TestTokenReviewMiddleware(t *testing.T) {
 			errorMessage: "user was not authenticated",
 		},
 		{
-			name:         "unauthenticated user + healthz",
+			name:         "unauthenticated user + healthz ignored",
 			url:          "/healthz",
 			tokenReview:  fake.NewSimpleClientset().Authentication().TokenReviews(),
 			responseCode: http.StatusOK,
+			ignoredPaths: []string{"/healthz"},
 		},
 		{
 			name:         "token review failure",
@@ -127,8 +129,9 @@ func TestTokenReviewMiddleware(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			trm := TokenReviewMiddleware{
-				TokenReview: tc.tokenReview,
-				Authorizer:  tc.authorizer,
+				TokenReview:  tc.tokenReview,
+				Authorizer:   tc.authorizer,
+				IgnoredPaths: tc.ignoredPaths,
 			}
 
 			url := "http://example.com/foo"

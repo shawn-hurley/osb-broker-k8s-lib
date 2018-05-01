@@ -11,11 +11,22 @@ import (
 	authenticationapi "k8s.io/api/authentication/v1"
 )
 
+const (
+	// HealthzPath - a common path to ignore is healthz,
+	// you can use this constant to ignore healthz
+	HealthzPath = "/healthz"
+)
+
 // TokenReviewMiddleware - Middleware to validate a bearer token using k8s
 // token review.
 type TokenReviewMiddleware struct {
 	TokenReview v1.TokenReviewInterface
 	Authorizer  UserInfoAuthorizer
+	// IgnoredPaths - This tell the middleware to ignore these paths.
+	// Note we are using the full request URI example
+	// To ignore catalog request you will need to add the path
+	// /<any prefix for your broker>/v2/catalog
+	IgnoredPaths []string
 }
 
 type osbError struct {
@@ -25,7 +36,7 @@ type osbError struct {
 // Middleware - function that conforms to gorilla-mux middleware.
 func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.RequestURI == "/healthz" {
+		if tr.shouldIgnore(r.RequestURI) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -86,6 +97,15 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (tr TokenReviewMiddleware) shouldIgnore(path string) bool {
+	for _, p := range tr.IgnoredPaths {
+		if p == path {
+			return true
+		}
+	}
+	return false
 }
 
 // writeOSBStatusCodeErrorResponse - This is taken from osb-broker-lib.
