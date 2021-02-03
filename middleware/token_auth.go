@@ -7,8 +7,8 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/kubernetes/client-go/kubernetes/typed/authentication/v1"
 	authenticationapi "k8s.io/api/authentication/v1"
+	"k8s.io/client-go/kubernetes/typed/authentication/v1"
 )
 
 // TokenReviewMiddleware - Middleware to validate a bearer token using k8s
