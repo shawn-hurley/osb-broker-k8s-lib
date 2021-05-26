@@ -1,22 +1,24 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/kubernetes/client-go/kubernetes/typed/authentication/v1"
 	authenticationapi "k8s.io/api/authentication/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/typed/authentication/v1"
 )
 
 type fakeTokenReview struct {
 	TokenReview *authenticationapi.TokenReview
 }
 
-func (ftr fakeTokenReview) Create(tr *authenticationapi.TokenReview) (*authenticationapi.TokenReview, error) {
+func (ftr fakeTokenReview) Create(ctx context.Context, tr *authenticationapi.TokenReview, opts metav1.CreateOptions) (*authenticationapi.TokenReview, error) {
 	if tr.Spec.Token != ftr.TokenReview.Spec.Token {
 		return nil, fmt.Errorf("token was not the same")
 	}
@@ -44,28 +46,28 @@ func TestTokenReviewMiddleware(t *testing.T) {
 	}{
 		{
 			name:         "no auth string",
-			tokenReview:  fake.NewSimpleClientset().Authentication().TokenReviews(),
+			tokenReview:  fake.NewSimpleClientset().AuthenticationV1().TokenReviews(),
 			header:       "",
 			responseCode: http.StatusUnauthorized,
 			errorMessage: "unable to find authentication token",
 		},
 		{
 			name:         "only bearer in auth string",
-			tokenReview:  fake.NewSimpleClientset().Authentication().TokenReviews(),
+			tokenReview:  fake.NewSimpleClientset().AuthenticationV1().TokenReviews(),
 			header:       "bearer",
 			responseCode: http.StatusUnauthorized,
 			errorMessage: "invalid authentication",
 		},
 		{
 			name:         "no bearer in auth string",
-			tokenReview:  fake.NewSimpleClientset().Authentication().TokenReviews(),
+			tokenReview:  fake.NewSimpleClientset().AuthenticationV1().TokenReviews(),
 			header:       "faker newsimpletoken",
 			responseCode: http.StatusUnauthorized,
 			errorMessage: "invalid authentication",
 		},
 		{
 			name:         "unauthenticated user",
-			tokenReview:  fake.NewSimpleClientset().Authentication().TokenReviews(),
+			tokenReview:  fake.NewSimpleClientset().AuthenticationV1().TokenReviews(),
 			header:       "bearer newsimpletoken",
 			responseCode: http.StatusUnauthorized,
 			errorMessage: "user was not authenticated",
@@ -73,7 +75,7 @@ func TestTokenReviewMiddleware(t *testing.T) {
 		{
 			name:         "unauthenticated user + healthz",
 			url:          "/healthz",
-			tokenReview:  fake.NewSimpleClientset().Authentication().TokenReviews(),
+			tokenReview:  fake.NewSimpleClientset().AuthenticationV1().TokenReviews(),
 			responseCode: http.StatusOK,
 		},
 		{

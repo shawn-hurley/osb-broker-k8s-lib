@@ -1,14 +1,16 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strings"
 
 	"github.com/golang/glog"
 
-	"github.com/kubernetes/client-go/kubernetes/typed/authentication/v1"
 	authenticationapi "k8s.io/api/authentication/v1"
+	"k8s.io/client-go/kubernetes/typed/authentication/v1"
 )
 
 // TokenReviewMiddleware - Middleware to validate a bearer token using k8s
@@ -55,7 +57,7 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 			glog.Infof("unable to find authentication token- %v\n", token)
 			return
 		}
-		t, err := tr.TokenReview.Create(&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: token}})
+		t, err := tr.TokenReview.Create(context.Background(), &authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: token}}, metav1.CreateOptions{})
 		if err != nil {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "unable to authenticate token",
