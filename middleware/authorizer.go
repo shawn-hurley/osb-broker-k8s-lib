@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 
 	"github.com/golang/glog"
 	"k8s.io/api/authentication/v1"
 	authorizationv1 "k8s.io/api/authorization/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	authv1 "k8s.io/client-go/kubernetes/typed/authorization/v1"
 )
 
@@ -30,7 +32,7 @@ type UserInfoAuthorizer interface {
 // SARUserInfoAuthorizer - Authorizes a k8s user info with a
 // Subject Access Review
 type SARUserInfoAuthorizer struct {
-	SAR authv1.SubjectAccessReviewExpansion
+	SAR authv1.SubjectAccessReviewInterface
 }
 
 // Authorize - Subject Access Review authorize the user.
@@ -52,7 +54,7 @@ func (s SARUserInfoAuthorizer) Authorize(u v1.UserInfo, req *http.Request) (Deci
 		Verb: req.Method,
 	}
 
-	review, err := s.SAR.Create(review)
+	review, err := s.SAR.Create(context.Background(), review, metav1.CreateOptions{})
 	if err != nil {
 		glog.Errorf("Failed to create subject access review: %v", err)
 		return DecisionDeny, err

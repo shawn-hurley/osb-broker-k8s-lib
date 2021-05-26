@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"context"
 	"encoding/json"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"strings"
 
@@ -55,7 +57,7 @@ func (tr TokenReviewMiddleware) Middleware(next http.Handler) http.Handler {
 			glog.Infof("unable to find authentication token- %v\n", token)
 			return
 		}
-		t, err := tr.TokenReview.Create(&authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: token}})
+		t, err := tr.TokenReview.Create(context.Background(), &authenticationapi.TokenReview{Spec: authenticationapi.TokenReviewSpec{Token: token}}, metav1.CreateOptions{})
 		if err != nil {
 			writeOSBStatusCodeErrorResponse(w, http.StatusUnauthorized, osbError{
 				Description: "unable to authenticate token",

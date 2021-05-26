@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"context"
 	"fmt"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	"reflect"
 	"testing"
@@ -15,7 +17,7 @@ type fakeSubjectAccessReview struct {
 	SubjectAccessReview *authorizationv1.SubjectAccessReview
 }
 
-func (fsar fakeSubjectAccessReview) Create(sar *authorizationv1.SubjectAccessReview) (*authorizationv1.SubjectAccessReview, error) {
+func (fsar fakeSubjectAccessReview) Create(ctx context.Context, sar *authorizationv1.SubjectAccessReview, opts metav1.CreateOptions) (*authorizationv1.SubjectAccessReview, error) {
 	if !reflect.DeepEqual(fsar.SubjectAccessReview.Spec, sar.Spec) {
 		return nil, fmt.Errorf("unknown subject access review")
 	}
@@ -25,7 +27,7 @@ func (fsar fakeSubjectAccessReview) Create(sar *authorizationv1.SubjectAccessRev
 func TestSARUserInfoAuthorizer(t *testing.T) {
 	testCases := []struct {
 		name             string
-		sar              authv1.SubjectAccessReviewExpansion
+		sar              authv1.SubjectAccessReviewInterface
 		user             v1.UserInfo
 		reqURL           string
 		reqMethod        string
